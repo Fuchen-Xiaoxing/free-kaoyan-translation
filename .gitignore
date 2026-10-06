@@ -20,3 +20,9 @@ tmp*
 *.bak
 .pytest_cache/
 settle.lock
+
+# Ignored documents, raw materials, and past papers
+初期文档/
+英二真题/
+CHANGELOG*
+考研英语二翻译特点与核心方法论深度精要*
