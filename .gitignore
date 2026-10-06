@@ -1,0 +1,22 @@
+# Python bytecode / build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Operating system / editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Runtime user-brain outputs (local practice archives)
+knowledge_base/user_brain/archives/*.md
+!knowledge_base/user_brain/archives/.gitkeep
+
+# Temporary and local scratch files
+tmp*
+*.tmp
+*.bak
+.pytest_cache/
+settle.lock
