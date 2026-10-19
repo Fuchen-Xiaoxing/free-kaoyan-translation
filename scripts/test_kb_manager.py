@@ -175,6 +175,40 @@ class TestKBManager(unittest.TestCase):
             if tmp_settle.exists():
                 tmp_settle.unlink()
 
+    def test_08_init_atomic(self):
+        # 1. Init without draft
+        res = self.run_cmd("init", "--year", "2010", "--json")
+        self.assertEqual(res.returncode, 0, f"init 2010 failed: {res.stderr}")
+        data = json.loads(res.stdout)
+        self.assertEqual(data["year"], "2010")
+        self.assertIn("Sustainability", data["source_text"])
+        self.assertEqual(len(data["sentences"]), 10)
+        self.assertIsNone(data["draft_lint"])
+        self.assertNotIn("reference_translation", data)
+
+        # 2. Init with draft text
+        draft_text = "如今，“可持续性”已经成为一个热门词语，但对泰德·宁来说，这个概念始终具有个人意义。"
+        res_lint = self.run_cmd("init", "--year", "2010", "--text", draft_text, "--json")
+        self.assertEqual(res_lint.returncode, 0)
+        data_lint = json.loads(res_lint.stdout)
+        self.assertIsNotNone(data_lint["draft_lint"])
+        self.assertIn("ted ning", str(data_lint["draft_lint"]["passes"]).lower())
+
+    def test_09_check_with_text(self):
+        # Check draft with --text
+        draft_text = (
+            "18世纪末，威廉·华兹华斯因其关于大自然的诗歌而闻名于世。“他是浪漫主义运动的创始人之一，”"
+            "该运动歌颂了大自然的美妙与奇观。诗歌富有感染力。它的能量与韵律可以打动读者，"
+            "带他们进入另一个世界，让他们以不同的视角看待事物。通过精心挑选的词句，诗歌可以极具戏剧性、"
+            "幽默、优美、动人并富有启发性。没有人确切知道诗歌何时起源，但它已经流传了数千年。"
+        )
+        res = self.run_cmd("check", "--text", draft_text, "--year", "2023", "--json")
+        self.assertEqual(res.returncode, 0, f"check --text failed: {res.stderr}")
+        data = json.loads(res.stdout)
+        self.assertGreaterEqual(data["char_count"], 150)
+        self.assertTrue(any("约定俗成专名命中" in p for p in data["passes"]))
+        self.assertTrue(any("字数达标" in p for p in data["passes"]))
+
 
 if __name__ == "__main__":
     unittest.main()

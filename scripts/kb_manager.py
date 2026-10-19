@@ -4,13 +4,14 @@
 kb_manager.py - Knowledge Base & Workflow Manager for Kaoyan English II Translation
 
 Subcommands:
-  1. prompt: Retrieve pure English prompt, sentence breakdown and context (physically isolates reference translation).
-  2. anchor: Retrieve full reference translation and sentence benchmark alignment (strictly for Stage 4 debrief).
-  3. check: Preflight linting for student translation drafts (sentence count, proper noun check, punctuation balance).
-  4. query: Search syntactic patterns or translation polysemy across user brain and seed bases.
-  5. settle: Atomic settlement of translation session (archives essay, writes patterns/vocab to user brain, logs history).
-  6. doctor: Comprehensive health check for paths, anchors, seeds, user brain, and environment credentials.
-  7. status: Summary of user brain assets, mastery, and practice history.
+  1. init: Atomic S0 initialization (prompt, breakdown, context, and optional draft preflight linting).
+  2. prompt: Retrieve pure English prompt, sentence breakdown and context (physically isolates reference translation).
+  3. anchor: Retrieve full reference translation and sentence benchmark alignment (strictly for Stage 4 debrief).
+  4. check: Preflight linting for student translation drafts (sentence count, proper noun check, punctuation balance).
+  5. query: Search syntactic patterns or translation polysemy across user brain and seed bases.
+  6. settle: Atomic settlement of translation session (archives essay, writes patterns/vocab to user brain, logs history).
+  7. doctor: Comprehensive health check for paths, anchors, seeds, user brain, and environment credentials.
+  8. status: Summary of user brain assets, mastery, and practice history.
 """
 
 import sys
@@ -136,18 +137,9 @@ def cmd_anchor(args):
             print(f"    CN: {s.get('chinese')}")
 
 
-def cmd_check(args):
-    """Preflight check on student translation draft."""
-    file_path = Path(args.file)
-    if not file_path.exists():
-        print(f"❌ 文件不存在: {file_path}", file=sys.stderr)
-        sys.exit(1)
-
-    with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-        content = f.read().strip()
-
+def run_draft_lint(content: str, anchor: dict = None, label: str = "学员译文初稿") -> dict:
+    """Run linting checks on student translation draft."""
     char_count = len(re.sub(r"\s+", "", content))
-    # Chinese sentences split
     cn_sentences = [s.strip() for s in re.split(r"(?<=[。！？\n])\s*", content) if s.strip()]
 
     issues = []
@@ -161,16 +153,14 @@ def cmd_check(args):
     else:
         passes.append(f"字数达标 ({char_count} 字，处于 200~350 标准区间)")
 
-    # Check 2: Sentence count match if year specified
-    if args.year:
-        anchor = get_anchor_by_year(args.year)
-        if anchor:
-            exp_count = len(anchor.get("sentences", []))
-            act_count = len(cn_sentences)
-            if abs(act_count - exp_count) > 3:
-                issues.append(f"分句数量偏离较大 (实际识别 {act_count} 句，真题英文包含 {exp_count} 句)，请核对是否有遗漏整句")
-            else:
-                passes.append(f"分句对应合理 (英文 {exp_count} 句 ➔ 汉语译文切分为 {act_count} 句)")
+    # Check 2: Sentence count match if anchor specified
+    if anchor:
+        exp_count = len(anchor.get("sentences", []))
+        act_count = len(cn_sentences)
+        if abs(act_count - exp_count) > 3:
+            issues.append(f"分句数量偏离较大 (实际识别 {act_count} 句，真题英文包含 {exp_count} 句)，请核对是否有遗漏整句")
+        else:
+            passes.append(f"分句对应合理 (英文 {exp_count} 句 ➔ 汉语译文切分为 {act_count} 句)")
 
     # Check 3: Paired quotes / brackets
     left_quotes = content.count("“")
@@ -181,31 +171,120 @@ def cmd_check(args):
         passes.append("成对标点符号闭合正常")
 
     # Check 4: Proper noun checks
-    content_lower = content.lower()
     for en_name, cn_name in PROPER_NOUNS_MAP.items():
-        if args.year:
-            anchor = get_anchor_by_year(args.year)
-            if anchor and en_name in anchor.get("source_text", "").lower():
-                expected_parts = [p.strip() for p in cn_name.split("/")]
-                matched = any(p in content for p in expected_parts)
-                if not matched:
-                    issues.append(f"约定俗成专有名词核对未命中: 原文出现 '{en_name}'，标准译名为 '{cn_name}'")
-                else:
-                    passes.append(f"约定俗成专名命中: '{en_name}' ➔ 正确译出")
+        if anchor and en_name in anchor.get("source_text", "").lower():
+            expected_parts = [p.strip() for p in cn_name.split("/")]
+            matched = any(p in content for p in expected_parts)
+            if not matched:
+                issues.append(f"约定俗成专有名词核对未命中: 原文出现 '{en_name}'，标准译名为 '{cn_name}'")
+            else:
+                passes.append(f"约定俗成专名命中: '{en_name}' ➔ 正确译出")
 
-    # Output
-    print(f"📋 【学员译文初稿预检报告】: {file_path.name}")
-    print(f"📊 汉字字符数: {char_count} 字 | 识别分句数: {len(cn_sentences)} 句\n")
-    if passes:
-        print("✅ 通过项:")
-        for p in passes:
-            print(f"  • {p}")
-    if issues:
-        print("\n⚠️ 关注项与潜在风险:")
-        for iss in issues:
-            print(f"  • {iss}")
+    return {
+        "label": label,
+        "char_count": char_count,
+        "sentence_count": len(cn_sentences),
+        "passes": passes,
+        "issues": issues,
+        "is_clean": len(issues) == 0
+    }
+
+
+def format_lint_report(lint: dict) -> str:
+    """Format lint result into human-readable report."""
+    lines = [
+        f"📋 【学员译文初稿预检报告】: {lint.get('label', '初稿')}",
+        f"📊 汉字字符数: {lint.get('char_count', 0)} 字 | 识别分句数: {lint.get('sentence_count', 0)} 句\n"
+    ]
+    if lint.get("passes"):
+        lines.append("✅ 通过项:")
+        for p in lint["passes"]:
+            lines.append(f"  • {p}")
+    if lint.get("issues"):
+        lines.append("\n⚠️ 关注项与潜在风险:")
+        for iss in lint["issues"]:
+            lines.append(f"  • {iss}")
     else:
-        print("\n🎉 初检查验无硬伤，可直接推进逐句精讲！")
+        lines.append("\n🎉 初检查验无硬伤，可直接推进逐句精讲！")
+    return "\n".join(lines)
+
+
+def cmd_check(args):
+    """Preflight check on student translation draft."""
+    content = ""
+    label = "直接输入文本"
+    if getattr(args, "text", None):
+        content = args.text.strip()
+    elif getattr(args, "file", None):
+        file_path = Path(args.file)
+        if not file_path.exists():
+            print(f"❌ 文件不存在: {file_path}", file=sys.stderr)
+            sys.exit(1)
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read().strip()
+        label = file_path.name
+    elif not sys.stdin.isatty():
+        content = sys.stdin.read().strip()
+        label = "标准输入(stdin)"
+    else:
+        print("❌ 必须提供 --file 或 --text 参数，或通过管道输入初译草稿。", file=sys.stderr)
+        sys.exit(1)
+
+    anchor = get_anchor_by_year(args.year) if getattr(args, "year", None) else None
+    lint = run_draft_lint(content, anchor=anchor, label=label)
+
+    if getattr(args, "json", False):
+        print(json.dumps(lint, ensure_ascii=False, indent=2))
+    else:
+        print(format_lint_report(lint))
+
+
+def cmd_init(args):
+    """Atomic initialization for S0: extracts prompt, context and optionally checks draft."""
+    anchor = get_anchor_by_year(args.year)
+    if not anchor:
+        print(f"❌ 未找到 {args.year} 年考研英语二翻译真题。", file=sys.stderr)
+        sys.exit(1)
+
+    content = ""
+    label = "草稿文本"
+    if getattr(args, "text", None):
+        content = args.text.strip()
+    elif getattr(args, "file", None):
+        file_path = Path(args.file)
+        if file_path.exists():
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                content = f.read().strip()
+            label = file_path.name
+
+    lint_result = run_draft_lint(content, anchor=anchor, label=label) if content else None
+
+    output = {
+        "year": anchor.get("year"),
+        "exam_type": anchor.get("exam_type", "English II"),
+        "title": anchor.get("title", ""),
+        "theme": anchor.get("theme", ""),
+        "word_count": anchor.get("word_count", 0),
+        "source_text": anchor.get("source_text", ""),
+        "sentences": [
+            {"id": s.get("id"), "english": s.get("english")}
+            for s in anchor.get("sentences", [])
+        ],
+        "draft_lint": lint_result
+    }
+
+    if getattr(args, "json", False):
+        print(json.dumps(output, ensure_ascii=False, indent=2))
+    else:
+        print(f"📖 【{output['title']}】 (考研英语二 Section Ⅲ Translation)")
+        print(f"📌 篇章题材: {output['theme']} | 词数: {output['word_count']} 词 | 句子总数: {len(output['sentences'])} 句\n")
+        print("【英文原文】:")
+        print(output["source_text"])
+        print("\n【逐句清单】:")
+        for s in output["sentences"]:
+            print(f"  [{s['id']}] {s['english']}")
+        if lint_result:
+            print("\n" + format_lint_report(lint_result))
 
 
 def cmd_query(args):
@@ -435,6 +514,13 @@ def main():
     parser = argparse.ArgumentParser(description="Knowledge base manager for kaoyan translation.")
     subparsers = parser.add_subparsers(dest="subcommand", help="Subcommand to run")
 
+    # init (atomic S0 initialization)
+    p_init = subparsers.add_parser("init", help="Atomic S0 initialization: prompt, context, and optional draft lint")
+    p_init.add_argument("--year", required=True, help="Year of the exam (e.g. 2010)")
+    p_init.add_argument("--text", help="Draft Chinese translation text for linting")
+    p_init.add_argument("--file", help="Path to draft text file")
+    p_init.add_argument("--json", action="store_true", help="Output JSON format")
+
     # prompt
     p_prompt = subparsers.add_parser("prompt", help="Get pure English prompt and sentence breakdown")
     p_prompt.add_argument("--year", required=True, help="Year of the exam (e.g. 2023)")
@@ -448,8 +534,10 @@ def main():
 
     # check
     p_check = subparsers.add_parser("check", help="Preflight check on student translation draft")
-    p_check.add_argument("--file", required=True, help="Path to draft text file")
+    p_check.add_argument("--file", help="Path to draft text file")
+    p_check.add_argument("--text", help="Draft Chinese translation text directly")
     p_check.add_argument("--year", help="Optional year for sentence count matching")
+    p_check.add_argument("--json", action="store_true", help="Output JSON format")
 
     # query
     p_query = subparsers.add_parser("query", help="Search patterns or vocab")
@@ -474,6 +562,7 @@ def main():
         sys.exit(0)
 
     dispatch = {
+        "init": cmd_init,
         "prompt": cmd_prompt,
         "anchor": cmd_anchor,
         "check": cmd_check,

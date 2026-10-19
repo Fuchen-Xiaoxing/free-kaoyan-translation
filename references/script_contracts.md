@@ -37,9 +37,10 @@
 
 | 子命令 | 阶段 | 核心职责 | 命令示例 |
 | :--- | :---: | :--- | :--- |
+| `init` | S0 | **开场原子初始化**：一键提取真题英文原文、分句列表、题材背景；附带 `--text` 或 `--file` 时同时完成初译质检，消除多重调用 | `python3 scripts/kb_manager.py init --year 2010 [--text "<初译草稿>"]` |
 | `prompt` | S0 | 提取指定年份真题英文原文、分句列表与篇章背景（物理隔离参考译文） | `python3 scripts/kb_manager.py prompt --year 2023` |
 | `anchor` | S4 | 调取指定年份完整官方参考译文与三维度标尺精析（S4 解锁专用） | `python3 scripts/kb_manager.py anchor --year 2023 --full` |
-| `check` | S0/S1 | 质检学员初译稿件（分句对应数量、字数、专有名词约定俗成核对、成对标点闭合） | `python3 scripts/kb_manager.py check --file <draft.txt> [--year 2023]` |
+| `check` | S0/S1 | 质检学员初译稿件（支持 `--text` 直接传文本或 `--file` 文件路径；字数、分句匹配、专名核对、标点闭合） | `python3 scripts/kb_manager.py check --text "<初译草稿>" [--year 2023]` |
 | `query` | S0/S1 | 检索学员外脑或种子库中的翻译句型与熟词生义 | `python3 scripts/kb_manager.py query --category pattern [--keyword 定从]` |
 | `settle` | S3 | 阶段 3 唯一结算入口：外脑双仓入库、整篇译文归档、元数据校验与日志记录 | `python3 scripts/kb_manager.py settle --file <settle.json>` |
 | `doctor` | 排错 | 检查外脑目录、真题底座完整性、环境变量连通性 | `python3 scripts/kb_manager.py doctor` |
