@@ -52,6 +52,8 @@
 
 `settle` 命令专用于本地外脑双仓入库与整篇译文归档。推荐写入临时目录或当前目录，再以 `--file settle.json` 传参：
 
+> **说明**：字段键名保持 `basic_translation`（基于学员初译纠错的基础合规版）与 `advanced_translation`（兼顾原文风格与流畅汉语的高分润色版），底层接口与历史资产完全兼容。
+
 ```json
 {
   "task_id": "T2023-E2-TRANS",

@@ -403,7 +403,7 @@ def cmd_settle(args):
                         f.write(f"  • {d.get('item', '')}: {d.get('penalty', '')} 分\n")
                 f.write("\n")
             f.write("## 基础合规版译文\n\n" + basic_tr + "\n\n")
-            f.write("## 高分地道润色版译文\n\n" + adv_tr + "\n\n")
+            f.write("## 高分润色版译文\n\n" + adv_tr + "\n\n")
 
         # 4. Update meta
         meta = {}
