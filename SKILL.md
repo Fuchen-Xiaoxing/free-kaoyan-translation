@@ -212,7 +212,7 @@ version: 1.2.0
 ### 4. 阶段 3：外脑归档与词汇审阅表
 ```markdown
 ### 【本地外脑归档成功】
-- **归档任务**：`[Task ID]` ➔ 已安全沉淀至 `knowledge_base/user_brain/archives/[Task ID].md`
+- **归档任务**：`[Task ID]` ➔ 已安全沉淀至 `/var/minis/mounts/Documents/考研英语/翻译.md`
 - **新增句型骨架**：`[PAT_ID]` ➔ 已沉淀至 `patterns.jsonl`
 
 ---

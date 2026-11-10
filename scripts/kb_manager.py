@@ -40,7 +40,8 @@ VOCAB_SEED = SEEDS_DIR / "translation_vocab.seed.jsonl"
 USER_BRAIN_DIR = KB_DIR / "user_brain"
 USER_PATTERNS = USER_BRAIN_DIR / "patterns.jsonl"
 USER_VOCAB = USER_BRAIN_DIR / "vocab.jsonl"
-ARCHIVES_DIR = USER_BRAIN_DIR / "archives"
+ARCHIVES_DIR = Path("/var/minis/mounts/Documents/考研英语")
+ARCHIVE_FILE = ARCHIVES_DIR / "翻译.md"
 META_FILE = USER_BRAIN_DIR / ".kb_meta.json"
 HISTORY_LOG = USER_BRAIN_DIR / "history.log"
 
@@ -388,8 +389,8 @@ def cmd_settle(args):
 
         # 3. Archive essay markdown
         ARCHIVES_DIR.mkdir(parents=True, exist_ok=True)
-        archive_path = ARCHIVES_DIR / f"{task_id}.md"
-        with open(archive_path, "w", encoding="utf-8") as f:
+        archive_path = ARCHIVE_FILE
+        with open(archive_path, "a", encoding="utf-8") as f:
             f.write(f"# 考研英语二翻译归档 · {title}\n\n")
             f.write(f"- **任务编号**: `{task_id}`\n")
             f.write(f"- **真题年份**: {year} 年\n")
@@ -429,7 +430,7 @@ def cmd_settle(args):
         print("🎉 考研英语二翻译本地外脑原子结算成功！")
         print("==============================================")
         print(f"📦 任务编号: {task_id}")
-        print(f"📁 译文归档: {archive_path.relative_to(PROJECT_ROOT)}")
+        print(f"📁 译文归档: {archive_path}")
         print(f"🧠 新增高分句型: {len(new_patterns)} 条 ➔ patterns.jsonl")
         print(f"📚 新增熟词生义: {len(new_vocab)} 条 ➔ vocab.jsonl")
         print("✅ 本地资产已安全落盘。")
@@ -497,17 +498,22 @@ def cmd_status(args):
 
     u_p = len(load_jsonl(USER_PATTERNS))
     u_v = len(load_jsonl(USER_VOCAB))
-    archives = list(ARCHIVES_DIR.glob("*.md")) if ARCHIVES_DIR.exists() else []
+    # Count archived sessions by counting H1 headings in the unified archive file
+    archive_count = 0
+    if ARCHIVE_FILE.exists():
+        try:
+            with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
+                archive_count = sum(1 for line in f if line.startswith("# 考研英语二翻译归档"))
+        except Exception:
+            pass
 
     print("📊 【考研英语二翻译学员外脑资产统计看板】")
-    print(f"  • 累计演练篇数: {len(archives)} 篇 (历史归档)")
+    print(f"  • 累计演练篇数: {archive_count} 篇 (历史归档)")
     print(f"  • 个人句型沉淀: {u_p} 条")
     print(f"  • 个人词汇沉淀: {u_v} 条")
     print(f"  • 最后更新时间: {meta.get('last_updated', '未记录')}")
-    if archives:
-        print("\n📝 最近练习归档:")
-        for a in archives[-5:]:
-            print(f"  - {a.stem}")
+    if archive_count:
+        print(f"\n📝 归档文件: {ARCHIVE_FILE}")
 
 
 def main():
